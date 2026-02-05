@@ -15,7 +15,8 @@ AFACE_PREFIX = "aface_"
 USAGE_MSG = f"""
 Usage: {PROG}
         [--aface_path /path/to/aface files]       # default is {AFACE_PATH}
-         --save_faces _face_glob_or_files_
+        [--save_faces  _face_glob_or_files_]
+        [--match_thresholds  _threshold_value_]
         _image_glob_or_file_ ...
 
 Face matching should be done in these steps:
@@ -54,6 +55,7 @@ DLIB_THRESHOLDS = {
     COS_SIM: 0.07,
     EUCLID_L2: 0.4,
 }
+MATCH_THRESHOLD = 0     # if 0, use DLIB_THRESHOLDS above
 
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO, datefmt="%H%M%S",
@@ -161,15 +163,16 @@ def load_named_faces(face_paths):
 
 def match_face_to_names(face_ev, name_to_facev, method=EUCLID_L2):
     match_names = dict()
+    threshold = DLIB_THRESHOLDS[COS_SIM] if method == COS_SIM else DLIB_THRESHOLDS[EUCLID_L2]
+    if MATCH_THRESHOLD > 0:
+        threshold = MATCH_THRESHOLD
     for name, known_ev in name_to_facev.items():
         if method == COS_SIM:
-            delta = cos_similarity(face_ev, known_ev)
-            if delta <= DLIB_THRESHOLDS[COS_SIM]:
-                match_names[name] = float(delta)
+            dist = cos_similarity(face_ev, known_ev)
         else:
             dist = l2_dist(face_ev, known_ev)
-            if dist <= DLIB_THRESHOLDS[EUCLID_L2]:
-                match_names[name] = float(dist)
+        if dist <= threshold:
+            match_names[name] = float(dist)
     return match_names
 
 
@@ -187,7 +190,8 @@ def find_named_faces(image_paths, name_to_facev):
         bname = os.path.basename(img_fn)
         rgb_img = dlib.load_rgb_image(img_fn)
         gray_img = rgb_to_gray_img(rgb_img)
-        if GRAY_HALF:  gray_img = halfsize_img(gray_img)
+        if GRAY_HALF:
+            gray_img = halfsize_img(gray_img)
 
         t0 = time.time()
         det_faces = FACE_DETECTOR(gray_img, 0)  # upsample_num_times=0 runs faster
@@ -202,7 +206,8 @@ def find_named_faces(image_paths, name_to_facev):
         found_names = dict()
         for d in det_faces:
             rect = d
-            if GRAY_HALF:  dlib.rectangle(d.left()*2, d.top()*2, d.right()*2, d.bottom()*2)
+            if GRAY_HALF:
+                dlib.rectangle(d.left()*2, d.top()*2, d.right()*2, d.bottom()*2)
             t0 = time.time()
             shape = FACE_PREDICTOR(rgb_img, rect)
 
@@ -261,6 +266,7 @@ def Usage(msg=""):
     exit(msg)
 
 def main(argv, face_path = AFACE_PATH):
+    global MATCH_THRESHOLD
     argc = len(argv)
     if argc <= 1:
         Usage("Please provide some files or glob (eg, '*.jpg') to match with named faces")
@@ -269,6 +275,9 @@ def main(argv, face_path = AFACE_PATH):
     cmd_mode = 'match'
     name_to_facev = {}
     for arg in args:
+        if arg == "--match_threshold":
+            MATCH_THRESHOLD = float(next(args))
+            continue
         if arg == "--aface_path":
             face_path = next(args)
             if not os.path.exists(face_path):
