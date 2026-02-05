@@ -1,6 +1,7 @@
 ## Run these commands to install dlib:
 brew install cmake python
 brew install dlib
+brew install exiftool
 
 python3 -m venv .venv
 source .venv/bin/activate
