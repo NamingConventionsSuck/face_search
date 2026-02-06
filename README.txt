@@ -14,11 +14,14 @@ pip3 install transformers accelerate bitsandbytes pillow torch
 
 ## For models/ directory, download dlib HOG's *.dat files from ONCE:
 mkdir -p models
+cd models
 if [ ! -e mmod_human_face_detector.dat ]; then
-  wget -P models  https://github.com/keyurr2/face-detection/blob/master/mmod_human_face_detector.dat
-  wget -P models  https://github.com/mrolarik/face-recognition-system/tree/master/dlib-face-model
+  wget https://github.com/keyurr2/face-detection/blob/master/mmod_human_face_detector.dat
+  wget https://github.com/mrolarik/face-recognition-system/tree/master/dlib-face-model
 fi
 
+# Download Paligemma model from huggingface
 if [ ! -e paligemma-3b-mix-224 ]; then
-  huggingface-cli download google/paligemma-3b-mix-224 --local-dir models
+  hf auth login
+  hf download google/paligemma-3b-mix-224 --local-dir .
 fi
